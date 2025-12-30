@@ -203,7 +203,7 @@ func (h *Handlers) PlayRoundHandler(w http.ResponseWriter, r *http.Request) {
 
 	game := h.Service.Store.games[gameId-1]
 	round := game.Rounds[roundNum]
-
+	// Assign Round Plays to Players then run RunRound()
 	if round.PlayerOne.PlayerID > 0 {
 		if playerInput.PlayerID == round.PlayerOne.PlayerID {
 			round.PlayerOne.Hand = playerInput.Hand
