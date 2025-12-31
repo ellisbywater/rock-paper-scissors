@@ -61,3 +61,99 @@ func (gr *GameRepository) Get(ctx context.Context, id int, res *domain.GameRespo
 type PlayerRepository struct {
 	db *sql.DB
 }
+
+func (pr *PlayerRepository) Create(ctx context.Context, player domain.PlayerCreateRequest, res *domain.PlayerResponse) error {
+	query := `
+		INSERT INTO players (
+			username
+		) VALUES (
+		 	$1
+		) RETURNING id, username;
+	`
+	err := pr.db.QueryRowContext(ctx, query, player.UserName).Scan(
+		&res.ID,
+		&res.UserName,
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *PlayerRepository) Get(ctx context.Context, id int, res *domain.PlayerResponse) error {
+	query := `
+		SELECT * FROM players WHERE id=$1;
+	`
+	err := pr.db.QueryRowContext(ctx, query, id).Scan(&res.ID, &res.UserName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pr *PlayerRepository) GetGames(ctx context.Context, id int, res *[]domain.GameResponse) error {
+	query := `
+		SELECT * FROM games g WHERE player_one = $1 OR player_two = $1
+		 JOIN rounds r ON g.id = r.game;
+	`
+	rows, err := pr.db.QueryContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		var game domain.GameResponse
+		err := rows.Scan(
+			&game.ID,
+			&game.TotalRounds,
+			&game.PlayerOneId,
+			&game.PlayerTwoId,
+			&game.PlayerOneScore,
+			&game.PlayerTwoScore,
+			&game.Rounds,
+			&game.Finished,
+			&game.CreatedAt,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+type RoundRepository struct {
+	db *sql.DB
+}
+
+func (rr *RoundRepository) Create(ctx context.Context, round_create_request domain.RoundCreateRequest, res *domain.RoundCreateResponse) error {
+	query := `
+		INSERT INTO rounds (
+			game,
+			count,
+			player_one,
+			player_two
+		) VALUES (
+		 	$1,
+			$2,
+			$3,
+			$4
+		) RETURNING id;
+	`
+	err := rr.db.QueryRowContext(
+		ctx,
+		query,
+		round_create_request.GameId,
+		round_create_request.Count,
+		round_create_request.PlayerOneId,
+		round_create_request.PlayerTwoID,
+	).Scan(&res.Id)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}

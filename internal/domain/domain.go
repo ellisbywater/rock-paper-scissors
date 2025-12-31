@@ -43,26 +43,29 @@ type PlayerResponse struct {
 }
 
 type Game struct {
-	ID          int
-	CreatedAt   time.Time
-	TotalRounds int
-	PlayerOne   PlayerResponse
-	PlayerTwo   PlayerResponse
+	ID             int
+	CreatedAt      time.Time
+	TotalRounds    int
+	PlayerOne      PlayerResponse
+	PlayerTwo      PlayerResponse
+	PlayerOneScore int
+	PlayerTwoScore int
 
 	Rounds []Round
 	Winner int
-	Score  Score
 }
 
 type GameResponse struct {
-	ID          int       `json:"id"`
-	TotalRounds int       `json:"total_rounds"`
-	PlayerOneId int       `json:"player_one"`
-	PlayerTwoId int       `json:"player_two"`
-	Winner      int       `json:"winner"`
-	Score       Score     `json:"score"`
-	Finished    bool      `json:"finished"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID             int       `json:"id"`
+	TotalRounds    int       `json:"total_rounds"`
+	PlayerOneId    int       `json:"player_one"`
+	PlayerTwoId    int       `json:"player_two"`
+	PlayerOneScore int       `json:"player_one_score"`
+	PlayerTwoScore int       `json:"player_two_score"`
+	Winner         int       `json:"winner"`
+	Finished       bool      `json:"finished"`
+	Rounds         []Round   `json:"rounds"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type GameCreateResponse struct {
@@ -87,15 +90,17 @@ type Round struct {
 }
 
 type RoundCreateRequest struct {
+	GameId      int `json:"game_id"`
 	Count       int `json:"count"`
 	PlayerOneId int `json:"player_one_id"`
 	PlayerTwoID int `json:"player_two_id"`
 }
 
 type RoundCreateResponse struct {
-	Id          int `json:"id"`
-	PlayerOneId int `json:"player_one_id"`
-	PlayerTwoID int `json:"player_two_id"`
+	Id int `json:"id"`
+
+	// PlayerOneId int `json:"player_one_id"`
+	// PlayerTwoID int `json:"player_two_id"`
 }
 
 type PlayerScore struct {

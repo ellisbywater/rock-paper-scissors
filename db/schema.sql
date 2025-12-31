@@ -14,6 +14,8 @@ CREATE TABLE games (
     total_rounds INTEGER NOT NULL DEFAULT 3,
     player_one INTEGER REFERENCES players(id),
     player_two INTEGER REFERENCES players(id),
+    player_one_score INTEGER,
+    player_two_score INTEGER,
     winner INTEGER REFERENCES players(id),
     created_at timestamptz DEFAULT NOW()
 );
@@ -29,13 +31,14 @@ CREATE TABLE player_score (
     player INTEGER REFERENCES players(id),
     score INTEGER NOT NULL DEFAULT 0
 );
+
 CREATE TABLE rounds (
     id INTEGER PRIMARY KEY,
     game INTEGER REFERENCES games(id),
     count INTEGER NOT NULL DEFAULT 1,
     player_one INTEGER REFERENCES players(id),
     player_two INTEGER REFERENCES players(id),
-    player_one_input INTEGER REFERENCES player_round_input(id),
-    player_two_input INTEGER REFERENCES player_round_input(id),
+    player_one_input hand,
+    player_two_input hand,
     winner INTEGER REFERENCES players(id)
 );
