@@ -225,11 +225,12 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 	`
 	// Retrieve Fields for comparison
 	err := rr.db.QueryRowContext(ctx, query_player_select, round_id).Scan(&results.player_one_id, &results.player_two_id, &results.player_one_hand, &results.player_two_hand)
+	fmt.Println("CheckWinner HandsResults: ", results)
 	if err != nil {
 		return err
 	}
 
-	winner_query := `UPDATE rounds SET winner = $1, finished = True WHERE id = $2 RETURNING *`
+	winner_query := `UPDATE rounds SET winner = $1, finished = True WHERE id = $2 RETURNING * `
 
 	var winPlayerId int
 	var player_score_name string //dynamic query string
@@ -249,11 +250,30 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 			player_score_name = ""
 		}
 	} else {
+		// query for no winner (sad); write to res
+		no_winner_query := `SELECT
+							id,
+							game, 
+							count, 
+							player_one_id, 
+							player_two_id, 
+							COALESCE(player_one_hand, 'none'), 
+							COALESCE(player_two_hand, 'none'), 
+							COALESCE(winner, 0), 
+							finished
+							FROM rounds WHERE id=$1`
+		err := rr.db.QueryRowContext(ctx, no_winner_query, round_id).Scan(&res.ID, &res.GameId, &res.Count, &res.PlayerOneID, &res.PlayerTwoID, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
 	// Update Round Winner
-	err = rr.db.QueryRowContext(ctx, winner_query, winPlayerId, round_id).Scan(&res.ID, &res.GameId, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
+	row := rr.db.QueryRowContext(ctx, winner_query, winPlayerId, round_id)
+	fmt.Println("Update round winner row context: ", row)
+
+	err = row.Scan(&res.ID, &res.GameId, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
 	if err != nil {
 		return err
 	}
@@ -316,7 +336,6 @@ func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.R
 	}
 	// Query to set the player hand
 	_ = rr.db.QueryRowContext(ctx, set_player_hand_query, player_input.Hand, player_input.RoundId)
-
 	err = rr.CheckForWinner(ctx, player_input.RoundId, player_input.GameID, res)
 	if err != nil {
 		return err

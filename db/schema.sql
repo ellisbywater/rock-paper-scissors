@@ -16,8 +16,8 @@ CREATE TABLE games (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     total_rounds INTEGER NOT NULL DEFAULT 3,
     current_round INTEGER,
-    player_one_id INTEGER REFERENCES players(id),
-    player_two_id INTEGER REFERENCES players(id),
+    player_one_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+    player_two_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
     player_one_score INTEGER,
     player_two_score INTEGER,
     winner INTEGER REFERENCES players(id),
@@ -40,7 +40,7 @@ CREATE TABLE games (
 
 CREATE TABLE rounds (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    game INTEGER REFERENCES games(id),
+    game INTEGER REFERENCES games(id) ON DELETE CASCADE,
     count INTEGER NOT NULL DEFAULT 1,
     player_one_id INTEGER REFERENCES players(id),
     player_two_id INTEGER REFERENCES players(id),
