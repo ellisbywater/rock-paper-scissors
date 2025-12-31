@@ -86,7 +86,8 @@ func main() {
 	r.HandleFunc("POST /game/create", gameHandler.Create)
 	r.HandleFunc("GET /game/{gameId}", gameHandler.GetGame)
 
-	r.HandleFunc("POST /round/create", roundHandler.Create)
+	r.HandleFunc("POST /game/{gameId}/round/create", roundHandler.Create)
+	r.HandleFunc("POST /game/{gameId}/round/{roundId}/playHand", roundHandler.PlayHand)
 
 	log.Println("Connected to database")
 

@@ -105,10 +105,11 @@ type RoundCreateRequest struct {
 }
 
 type RoundCreateResponse struct {
-	Id int `json:"id"`
-
-	// PlayerOneId int `json:"player_one_id"`
-	// PlayerTwoID int `json:"player_two_id"`
+	Id          int `json:"id"`
+	GameId      int `json:"game_id"`
+	Count       int `json:"count"`
+	PlayerOneID int `json:"player_one_id"`
+	PlayerTwoID int `json:"player_two_id"`
 }
 
 type PlayerScore struct {

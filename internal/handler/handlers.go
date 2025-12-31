@@ -129,15 +129,40 @@ func NewRoundHandlers(service service.RoundService) *RoundHandlers {
 }
 
 func (rh *RoundHandlers) Create(w http.ResponseWriter, r *http.Request) {
-	var newRoundRequest domain.RoundCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&newRoundRequest); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	gameId, err := strconv.Atoi(r.PathValue("gameId"))
+	if err != nil {
+		http.Error(w, "Invalid game id", http.StatusBadRequest)
 	}
-	defer r.Body.Close()
+	var newRoundRequest domain.RoundCreateRequest
 
+	newRoundRequest.GameId = gameId
 	round, err := rh.service.Create(r.Context(), newRoundRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	json.NewEncoder(w).Encode(round)
+}
+
+func (rh *RoundHandlers) PlayHand(w http.ResponseWriter, r *http.Request) {
+	roundId, err := strconv.Atoi(r.PathValue("roundId"))
+	if err != nil {
+		http.Error(w, "Invalid Round ID", http.StatusBadRequest)
+	}
+	gameId, err := strconv.Atoi(r.PathValue("gameId"))
+	if err != nil {
+		http.Error(w, "Invalid game id", http.StatusBadRequest)
+	}
+	var playHandRequest domain.RoundPlayerInput
+	if err := json.NewDecoder(r.Body).Decode(&playHandRequest); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	}
+	defer r.Body.Close()
+
+	playHandRequest.RoundId = roundId
+	playHandRequest.GameID = gameId
+	hand, err := rh.service.UpdateHand(r.Context(), playHandRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	json.NewEncoder(w).Encode(hand)
 }

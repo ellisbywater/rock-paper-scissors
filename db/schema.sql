@@ -1,7 +1,10 @@
-
+ALTER SYSTEM SET log_statement = 'all';
+ALTER SYSTEM SET log_min_duration_statement = 0;
+ALTER SYSTEM SET log_error_verbosity = 'verbose';
+SELECT pg_reload_conf();
 
 -- 1. Enums
-CREATE TYPE hand AS ENUM ('rock', 'paper', 'scissors');
+CREATE TYPE hand AS ENUM ('none','rock', 'paper', 'scissors');
 
 -- 2. Players Table
 CREATE TABLE players (

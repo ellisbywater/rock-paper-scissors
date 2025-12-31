@@ -47,6 +47,7 @@ func (gr *gameRepository) Create(ctx context.Context, game domain.GameCreateRequ
 }
 
 func (gr *gameRepository) Get(ctx context.Context, id int, res *domain.GameResponse) error {
+	// TODO: update query to join rounds
 	query := `
 		SELECT id, total_rounds, current_round, player_one_id, player_two_id, COALESCE(winner, 0), created_at
 		FROM games
@@ -190,7 +191,7 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 			$2,
 			$3,
 			$4
-		) RETURNING id;
+		) RETURNING id, game, count, player_one_id, player_two_id;
 	`
 	err = rr.db.QueryRowContext(
 		ctx,
@@ -199,7 +200,7 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 		checkCountResult.current_round+1,
 		checkCountResult.player_one_id,
 		checkCountResult.player_two_id,
-	).Scan(&res.Id)
+	).Scan(&res.Id, &res.GameId, &res.Count, &res.PlayerOneID, &res.PlayerTwoID)
 
 	if err != nil {
 		return err
@@ -217,11 +218,10 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 		player_two_id   int
 		player_one_hand domain.Hand
 		player_two_hand domain.Hand
-		message         string
 	}
 	var results handsResults
 	query_player_select := `
-		SELECT player_one_id, player_two_id, player_one_hand, player_two_hand FROM round WHERE id = $1 RETURNING *;
+		SELECT player_one_id, player_two_id, COALESCE(player_one_hand, 'none'), COALESCE(player_two_hand, 'none') FROM rounds WHERE id = $1
 	`
 	// Retrieve Fields for comparison
 	err := rr.db.QueryRowContext(ctx, query_player_select, round_id).Scan(&results.player_one_id, &results.player_two_id, &results.player_one_hand, &results.player_two_hand)
@@ -229,24 +229,33 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 		return err
 	}
 
-	var winner_query string      //dynamic query string
+	winner_query := `UPDATE rounds SET winner = $1, finished = True WHERE id = $2 RETURNING *`
+
+	var winPlayerId int
 	var player_score_name string //dynamic query string
 	// Calculate score and create respective queries
-	if len(results.player_one_hand) != 0 && len(results.player_two_hand) != 0 {
+	if results.player_one_hand != "none" && results.player_two_hand != "none" {
 		winner_num := resolveHands(string(results.player_one_hand), string(results.player_two_hand))
+		fmt.Println("Winner Number: ", winner_num)
 		switch winner_num {
 		case 1:
-			winner_query = formatWinnerQuery(&results.player_one_id, round_id)
+			winPlayerId = results.player_one_id
 			player_score_name = "player_one_score"
 		case 2:
-			winner_query = formatWinnerQuery(&results.player_two_id, round_id)
+			winPlayerId = results.player_two_id
 			player_score_name = "player_two_score"
 		default:
-			winner_query = fmt.Sprintf("UPDATE rounds SET winner=NULL, finished=True WHERE id=%d RETURNING *;", round_id)
+			winner_query = `UPDATE rounds SET winner=NULL, finished=True WHERE id=$1 RETURNING *;`
 			player_score_name = ""
 		}
 	} else {
 		return nil
+	}
+
+	// Update Round Winner
+	err = rr.db.QueryRowContext(ctx, winner_query, winPlayerId, round_id).Scan(&res.ID, &res.GameId, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
+	if err != nil {
+		return err
 	}
 
 	type checkGameCount struct {
@@ -259,16 +268,21 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 	if err != nil {
 		return err
 	}
-	// Update Round Winner
-	err = rr.db.QueryRowContext(ctx, winner_query).Scan(&res.ID, &res.GameId, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
-	if err != nil {
-		return err
-	}
 
 	// Update Score
+	var score_query string
 	if len(player_score_name) != 0 {
-		score_query := formatUpdateGameScore(player_score_name, game_id)
-		_ = rr.db.QueryRowContext(ctx, score_query)
+		switch player_score_name {
+		case "player_one_score":
+			score_query = `UPDATE games SET player_one_score = player_one_score + 1 WHERE id=$1;`
+		case "player_two_score":
+			score_query = `UPDATE games SET player_two_score = player_two_score + 1 WHERE id=$1;`
+		default:
+			score_query = ""
+		}
+		if len(score_query) > 0 {
+			_ = rr.db.QueryRowContext(ctx, score_query, game_id)
+		}
 	}
 
 	if gameCount.current_round == gameCount.total_rounds {
@@ -280,7 +294,6 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 
 func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.RoundPlayerInput, res *domain.Round) error {
 
-	var player string
 	player_query := `
 		SELECT player_one_id, player_two_id FROM games WHERE id = $1;
 	`
@@ -289,28 +302,26 @@ func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.R
 		player_two int
 	}
 	var player_query_res playerQueryRes
+	// Query Game player ids
 	err := rr.db.QueryRowContext(ctx, player_query, player_input.GameID).Scan(&player_query_res.player_one, &player_query_res.player_two)
 
+	var set_player_hand_query string
 	switch player_input.PlayerID {
 	case player_query_res.player_one:
-		player = "player_one_hand"
+		set_player_hand_query = `UPDATE rounds SET player_one_hand = $1 WHERE id = $2`
 	case player_query_res.player_two:
-		player = "player_two_hand"
+		set_player_hand_query = "UPDATE rounds SET player_two_hand = $1 WHERE id = $2"
 	default:
 		return errors.New("Player does not belong here")
 	}
-
-	query := `
-		UPDATE rounds SET $1 = $2 WHERE id = $3 RETURNING *;
-	`
-
-	_ = rr.db.QueryRowContext(ctx, query, player, player_input.Hand, player_input.RoundId)
+	// Query to set the player hand
+	_ = rr.db.QueryRowContext(ctx, set_player_hand_query, player_input.Hand, player_input.RoundId)
 
 	err = rr.CheckForWinner(ctx, player_input.RoundId, player_input.GameID, res)
-
 	if err != nil {
 		return err
 	}
+	fmt.Println("CheckForWinner Response: ", res)
 	return nil
 }
 
@@ -352,14 +363,4 @@ func resolveHands(hand_one string, hand_two string) int {
 		}
 	}
 	return 0
-}
-
-// format winner update query dynamically in a switch statement
-func formatWinnerQuery(player_id *int, round_id int) string {
-	return fmt.Sprintf("UPDATE rounds SET winner = %d, finished = True WHERE id = %d;", player_id, round_id)
-}
-
-// format game score update query dynamically in a switch statement
-func formatUpdateGameScore(player_score_name string, game_id int) string {
-	return fmt.Sprintf("UPDATE games SET %s = %s + 1 WHERE id=%d;", player_score_name, player_score_name, game_id)
 }
