@@ -20,7 +20,7 @@ type NewGameRequest struct {
 }
 
 type NewPlayerRequest struct {
-	Name string `json:"name"`
+	UserName string `json:"username"`
 }
 
 type RoundPlayerInput struct {
@@ -41,6 +41,7 @@ func (gh *GameHandlers) Create(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&new_game_req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 	}
+	defer r.Body.Close()
 	if new_game_req.TotalRounds < 1 {
 		new_game_req.TotalRounds = 1
 	}
@@ -63,4 +64,53 @@ func (gh *GameHandlers) GetGame(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusFound)
 	json.NewEncoder(w).Encode(game)
+}
+
+type PlayerHandlers struct {
+	service service.PlayerService
+}
+
+func NewPlayerHandler(service service.PlayerService) *PlayerHandlers {
+	return &PlayerHandlers{service: service}
+}
+
+func (ph *PlayerHandlers) Create(w http.ResponseWriter, r *http.Request) {
+	var new_player_req NewPlayerRequest
+	if err := json.NewDecoder(r.Body).Decode(&new_player_req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	}
+	defer r.Body.Close()
+	if new_player_req.UserName == "" {
+		http.Error(w, "Username cannot be blank", http.StatusBadRequest)
+	}
+	player, err := ph.service.CreatePlayer(r.Context(), new_player_req.UserName)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(player)
+}
+
+func (ph *PlayerHandlers) Get(w http.ResponseWriter, r *http.Request) {
+	player_id, err := strconv.Atoi(r.PathValue("playerId"))
+	if err != nil {
+		http.Error(w, "Invalid player id", http.StatusBadRequest)
+	}
+	player, err := ph.service.GetPlayer(r.Context(), player_id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	json.NewEncoder(w).Encode(player)
+}
+
+func (ph *PlayerHandlers) GetGames(w http.ResponseWriter, r *http.Request) {
+	player_id, err := strconv.Atoi(r.PathValue("playerId"))
+	if err != nil {
+		http.Error(w, "Invalid player id", http.StatusBadRequest)
+	}
+	games, err := ph.service.GetPlayerGames(r.Context(), player_id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	json.NewEncoder(w).Encode(games)
 }
