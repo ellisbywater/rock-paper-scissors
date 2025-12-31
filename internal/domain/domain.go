@@ -25,13 +25,17 @@ import (
 	- Has many Hands
 **/
 
-type Hand int
+type Hand string
 
-const (
-	Rock Hand = iota
-	Paper
-	Scissors
-)
+// const (
+// 	Rock Hand = iota
+// 	Paper
+// 	Scissors
+// )
+
+// func (h Hand) String() string {
+// 	return [...]string{"rock", "paper", "scissors"}[h]
+// }
 
 type PlayerCreateRequest struct {
 	UserName string `json:"username"`
@@ -43,9 +47,10 @@ type PlayerResponse struct {
 }
 
 type Game struct {
-	ID             int
-	CreatedAt      time.Time
-	TotalRounds    int
+	ID          int
+	CreatedAt   time.Time
+	TotalRounds int
+
 	PlayerOne      PlayerResponse
 	PlayerTwo      PlayerResponse
 	PlayerOneScore int
@@ -58,8 +63,9 @@ type Game struct {
 type GameResponse struct {
 	ID             int       `json:"id"`
 	TotalRounds    int       `json:"total_rounds"`
-	PlayerOneId    int       `json:"player_one"`
-	PlayerTwoId    int       `json:"player_two"`
+	CurrentRound   int       `json:"current_round"`
+	PlayerOneId    int       `json:"player_one_id"`
+	PlayerTwoId    int       `json:"player_two_id"`
 	PlayerOneScore int       `json:"player_one_score"`
 	PlayerTwoScore int       `json:"player_two_score"`
 	Winner         int       `json:"winner"`
@@ -69,11 +75,12 @@ type GameResponse struct {
 }
 
 type GameCreateResponse struct {
-	ID          int       `json:"id"`
-	TotalRounds int       `json:"total_rounds"`
-	PlayerOneId int       `json:"player_one_id"`
-	PlayerTwoId int       `json:"player_two_id"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID           int       `json:"id"`
+	TotalRounds  int       `json:"total_rounds"`
+	CurrentRound int       `json:"current_round"`
+	PlayerOneId  int       `json:"player_one_id"`
+	PlayerTwoId  int       `json:"player_two_id"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 type GameCreateRequest struct {
 	TotalRounds int `json:"total_rounds"`
@@ -83,16 +90,20 @@ type GameCreateRequest struct {
 
 type Round struct {
 	ID            int
+	GameId        int
 	Count         int
-	PlayerOneHand Hand
-	PlayerTwoHand Hand
+	PlayerOneID   int
+	PlayerTwoID   int
+	PlayerOneHand string
+	PlayerTwoHand string
 	Winner        int
+	Finished      bool
 }
 
 type RoundCreateRequest struct {
 	GameId      int `json:"game_id"`
 	Count       int `json:"count"`
-	PlayerOneId int `json:"player_one_id"`
+	PlayerOneID int `json:"player_one_id"`
 	PlayerTwoID int `json:"player_two_id"`
 }
 
@@ -114,9 +125,10 @@ type Score struct {
 }
 
 type RoundPlayerInput struct {
-	RoundId     int  `json:"round_id"`
-	IsPlayerOne bool `json:"is_player_one"`
-	Hand        Hand `json:"hand"`
+	RoundId  int    `json:"round_id"`
+	GameID   int    `json:"game_id"`
+	PlayerID int    `json:"player_id"`
+	Hand     string `json:"hand"`
 }
 
 type PlayerRepository interface {

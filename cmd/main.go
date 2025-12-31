@@ -116,57 +116,58 @@ type Handlers struct {
 	Service GameStoreService
 }
 
-func ResolveHands(hand_one Hand, hand_two Hand) int {
+func ResolveHands(hand_one string, hand_two string) int {
 	switch hand_one {
-	case Rock:
-		if hand_two == Paper {
+	case "rock":
+		if hand_two == "paper" {
 			return 2
 		}
-		if hand_two == Scissors {
+		if hand_two == "scissors" {
 			return 1
 		}
-		if hand_two == Rock {
+		if hand_two == "rock" {
 			return 0
 		}
-	case Scissors:
-		if hand_two == Rock {
+	case "scissors":
+		if hand_two == "rock" {
 			return 2
 		}
-		if hand_two == Paper {
+		if hand_two == "paper" {
 			return 1
 		}
-		if hand_two == Scissors {
+		if hand_two == "scissors" {
 			return 0
 		}
-	case Paper:
-		if hand_two == Scissors {
+	case "paper":
+		if hand_two == "scissors" {
 			return 2
 		}
-		if hand_two == Rock {
+		if hand_two == "rock" {
 			return 1
 		}
-		if hand_two == Paper {
+		if hand_two == "paper" {
 			return 0
 		}
 	}
 	return 0
 }
 
-func (g *Game) RunRound(player_one_hand RoundPlayerInput, player_two_hand RoundPlayerInput) RoundResult {
-	result := ResolveHands(player_one_hand.Hand, player_two_hand.Hand)
-	var winner int = 0
+// Leaving for reference
+// func (g *Game) RunRound(player_one_hand RoundPlayerInput, player_two_hand RoundPlayerInput) RoundResult {
+// 	result := ResolveHands(player_one_hand.Hand, player_two_hand.Hand)
+// 	var winner int = 0
 
-	if result == 1 {
-		winner = player_one_hand.PlayerID
-	}
-	if result == 2 {
-		winner = player_two_hand.PlayerID
-	}
-	round := g.CurrentRound
-	g.CurrentRound++
+// 	if result == 1 {
+// 		winner = player_one_hand.PlayerID
+// 	}
+// 	if result == 2 {
+// 		winner = player_two_hand.PlayerID
+// 	}
+// 	round := g.CurrentRound
+// 	g.CurrentRound++
 
-	return RoundResult{RoundCount: round, Winner: winner}
-}
+// 	return RoundResult{RoundCount: round, Winner: winner}
+// }
 
 func (h *Handlers) NewGameHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {

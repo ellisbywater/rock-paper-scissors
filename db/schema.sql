@@ -12,11 +12,13 @@ CREATE TABLE players (
 CREATE TABLE games (
     id INTEGER PRIMARY KEY,
     total_rounds INTEGER NOT NULL DEFAULT 3,
-    player_one INTEGER REFERENCES players(id),
-    player_two INTEGER REFERENCES players(id),
+    current_round INTEGER,
+    player_one_id INTEGER REFERENCES players(id),
+    player_two_id INTEGER REFERENCES players(id),
     player_one_score INTEGER,
     player_two_score INTEGER,
     winner INTEGER REFERENCES players(id),
+    finished BOOLEAN DEFAULT False,
     created_at timestamptz DEFAULT NOW()
 );
 
@@ -36,9 +38,10 @@ CREATE TABLE rounds (
     id INTEGER PRIMARY KEY,
     game INTEGER REFERENCES games(id),
     count INTEGER NOT NULL DEFAULT 1,
-    player_one INTEGER REFERENCES players(id),
-    player_two INTEGER REFERENCES players(id),
+    player_one_id INTEGER REFERENCES players(id),
+    player_two_id INTEGER REFERENCES players(id),
     player_one_hand hand,
     player_two_hand hand,
-    winner INTEGER REFERENCES players(id)
+    winner INTEGER REFERENCES players(id),
+    finished BOOLEAN DEFAULT False
 );

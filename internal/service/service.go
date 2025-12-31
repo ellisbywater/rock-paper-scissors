@@ -74,3 +74,38 @@ func (ps *PlayerService) GetPlayerGames(ctx context.Context, id int) (*[]domain.
 	}
 	return &games, nil
 }
+
+type RoundService struct {
+	repo domain.RoundRepository
+}
+
+func NewRoundRepository(repo domain.RoundRepository) *RoundService {
+	return &RoundService{repo: repo}
+}
+
+func (rs *RoundService) Create(ctx context.Context, req domain.RoundCreateRequest) (*domain.RoundCreateResponse, error) {
+	var round_res domain.RoundCreateResponse
+	err := rs.repo.Create(ctx, req, &round_res)
+	if err != nil {
+		return &round_res, err
+	}
+	return &round_res, nil
+}
+
+func (rs *RoundService) Get(ctx context.Context, id int) (*domain.Round, error) {
+	var round_res domain.Round
+	err := rs.repo.Get(ctx, id, &round_res)
+	if err != nil {
+		return &round_res, err
+	}
+	return &round_res, nil
+}
+
+func (rs *RoundService) UpdateHand(ctx context.Context, hand domain.RoundPlayerInput) (*domain.Round, error) {
+	var round_res domain.Round
+	err := rs.repo.UpdateHand(ctx, hand, &round_res)
+	if err != nil {
+		return &round_res, err
+	}
+	return &round_res, nil
+}
