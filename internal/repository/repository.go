@@ -195,7 +195,7 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 		ctx,
 		query,
 		round_create_request.GameId,
-		round_create_request.Count,
+		checkCountResult.count+1,
 		round_create_request.PlayerOneID,
 		round_create_request.PlayerTwoID,
 	).Scan(&res.Id)
