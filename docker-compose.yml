@@ -1,0 +1,22 @@
+
+services:
+  app:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+  db:
+    image: postgres:16
+    container_name: rps_db
+    environment:
+      POSTGRES_DB: rps
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+volumes:
+  db-data:

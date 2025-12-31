@@ -9,7 +9,7 @@ import (
 	"os"
 	"strconv"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 )
 
 type Hand int
@@ -242,21 +242,17 @@ type App struct {
 }
 
 func main() {
-	db, err := sql.Open("sqlite3", "./db/rps.db")
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	schemaSQL, err := os.ReadFile("./db/schema.sql")
-	if err != nil {
-		log.Fatal(err)
+	if err := db.Ping(); err != nil {
+		log.Fatalf("error in connection with database %s", err)
 	}
 
-	_, err = db.Exec(string(schemaSQL))
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Println("Connected to database")
 
 	app := App{
 		Port:    ":8080",
