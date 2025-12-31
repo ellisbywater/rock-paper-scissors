@@ -22,17 +22,18 @@ CREATE TABLE games (
     created_at timestamptz DEFAULT NOW()
 );
 
-CREATE TABLE player_round_input (
-    id INTEGER PRIMARY KEY,
-    player INTEGER REFERENCES players(id),
-    hand_played hand NOT NUll
-);
+-- CREATE TABLE player_round_input (
+--     id INTEGER PRIMARY KEY,
+--     player INTEGER REFERENCES players(id),
+--     round_id INTEGER REFERENCES rounds(id),
+--     hand_played hand NOT NUll
+-- );
 
-CREATE TABLE player_score (
-    id INTEGER PRIMARY KEY,
-    player INTEGER REFERENCES players(id),
-    score INTEGER NOT NULL DEFAULT 0
-);
+-- CREATE TABLE player_score (
+--     id INTEGER PRIMARY KEY,
+--     player INTEGER REFERENCES players(id),
+--     score INTEGER NOT NULL DEFAULT 0
+-- );
 
 CREATE TABLE rounds (
     id INTEGER PRIMARY KEY,

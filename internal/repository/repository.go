@@ -208,10 +208,10 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 	return nil
 }
 
-func formatWinnerQuery(player_id *int, round_id int) string {
-	return fmt.Sprintf("UPDATE rounds SET winner = %d, finished = True WHERE id = %d;", player_id, round_id)
-}
-
+// TODO: Has to be someway to simplify or condense the queries
+// Checks For Winner
+// Updates Score
+// Updates game finished
 func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, game_id int, res *domain.Round) error {
 	type handsResults struct {
 		player_one_id   int
@@ -230,17 +230,21 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 		return err
 	}
 
-	var winner_query string
-	if results.player_one_hand != "" && results.player_two_hand != "" {
-		winner_num := ResolveHands(string(results.player_one_hand), string(results.player_two_hand))
+	var winner_query string      //dynamic query string
+	var player_score_name string //dynamic query string
+	// Calculate score and create respective queries
+	if len(results.player_one_hand) != 0 && len(results.player_two_hand) != 0 {
+		winner_num := resolveHands(string(results.player_one_hand), string(results.player_two_hand))
 		switch winner_num {
 		case 1:
 			winner_query = formatWinnerQuery(&results.player_one_id, round_id)
-
+			player_score_name = "player_one_score"
 		case 2:
 			winner_query = formatWinnerQuery(&results.player_two_id, round_id)
+			player_score_name = "player_two_score"
 		default:
 			winner_query = fmt.Sprintf("UPDATE rounds SET winner=NULL, finished=True WHERE id=%d RETURNING *;", round_id)
+			player_score_name = ""
 		}
 	} else {
 		return nil
@@ -251,19 +255,27 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 		current_round int
 	}
 	var gameCount checkGameCount
+	// Update current round
 	err = rr.db.QueryRowContext(ctx, "UPDATE games SET current_round = current_round + 1 WHERE id=$1 RETURNING current_round, total_rounds;", game_id).Scan(&gameCount.current_round, &gameCount.total_rounds)
 	if err != nil {
 		return err
 	}
-
+	// Update Round Winner
 	err = rr.db.QueryRowContext(ctx, winner_query).Scan(&res.ID, &res.GameId, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
 	if err != nil {
 		return err
 	}
 
+	// Update Score
+	if len(player_score_name) != 0 {
+		score_query := formatUpdateGameScore(player_score_name, game_id)
+		_ = rr.db.QueryRowContext(ctx, score_query)
+	}
+
 	if gameCount.current_round == gameCount.total_rounds {
 		_ = rr.db.QueryRowContext(ctx, "UPDATE games SET finished=True WHERE id=$1;", game_id)
 	}
+
 	return nil
 }
 
@@ -303,7 +315,11 @@ func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.R
 	return nil
 }
 
-func ResolveHands(hand_one string, hand_two string) int {
+/**
+UTIL Functions
+**/
+// resolve winner from hands
+func resolveHands(hand_one string, hand_two string) int {
 	switch hand_one {
 	case "rock":
 		if hand_two == "paper" {
@@ -337,4 +353,14 @@ func ResolveHands(hand_one string, hand_two string) int {
 		}
 	}
 	return 0
+}
+
+// format winner update query dynamically in a switch statement
+func formatWinnerQuery(player_id *int, round_id int) string {
+	return fmt.Sprintf("UPDATE rounds SET winner = %d, finished = True WHERE id = %d;", player_id, round_id)
+}
+
+// format game score update query dynamically in a switch statement
+func formatUpdateGameScore(player_score_name string, game_id int) string {
+	return fmt.Sprintf("UPDATE games SET %s = %s + 1 WHERE id=%d;", player_score_name, player_score_name, game_id)
 }
