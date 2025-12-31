@@ -133,9 +133,9 @@ func (rh *RoundHandlers) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Invalid game id", http.StatusBadRequest)
 	}
-	var newRoundRequest domain.RoundCreateRequest
+	var newRoundRequest domain.RoundContext
 
-	newRoundRequest.GameId = gameId
+	newRoundRequest.GameID = gameId
 	round, err := rh.service.Create(r.Context(), newRoundRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -152,13 +152,13 @@ func (rh *RoundHandlers) PlayHand(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Invalid game id", http.StatusBadRequest)
 	}
-	var playHandRequest domain.RoundPlayerInput
+	var playHandRequest domain.RoundContext
 	if err := json.NewDecoder(r.Body).Decode(&playHandRequest); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 	}
 	defer r.Body.Close()
 
-	playHandRequest.RoundId = roundId
+	playHandRequest.ID = roundId
 	playHandRequest.GameID = gameId
 	hand, err := rh.service.UpdateHand(r.Context(), playHandRequest)
 	if err != nil {
