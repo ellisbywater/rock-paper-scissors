@@ -41,7 +41,7 @@ type PlayerService struct {
 	repo domain.PlayerRepository
 }
 
-func NewPlayerRepository(repo domain.PlayerRepository) *PlayerService {
+func NewPlayerService(repo domain.PlayerRepository) *PlayerService {
 	return &PlayerService{repo: repo}
 }
 
@@ -79,7 +79,7 @@ type RoundService struct {
 	repo domain.RoundRepository
 }
 
-func NewRoundRepository(repo domain.RoundRepository) *RoundService {
+func NewRoundService(repo domain.RoundRepository) *RoundService {
 	return &RoundService{repo: repo}
 }
 

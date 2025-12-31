@@ -238,8 +238,8 @@ func (h *Handlers) NewPlayerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type App struct {
-	Port    string
-	Service GameStoreService
+	Port   string
+	Router *http.ServeMux
 }
 
 func main() {
@@ -256,15 +256,10 @@ func main() {
 	log.Println("Connected to database")
 
 	app := App{
-		Port:    ":8080",
-		Service: initGameStore(),
+		Port:   ":8080",
+		Router: NewRouterWithDeps(db),
 	}
-	handlers := Handlers{Service: app.Service}
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /game/new", handlers.NewGameHandler)
-
-	mux.HandleFunc("/player/new", handlers.NewPlayerHandler)
 
 	log.Println("Rock Paper Scissors running on Port ", app.Port)
-	log.Fatal(http.ListenAndServe(app.Port, mux))
+	log.Fatal(http.ListenAndServe(app.Port, app.Router))
 }
