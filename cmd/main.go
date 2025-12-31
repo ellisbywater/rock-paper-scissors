@@ -1,11 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Hand int
@@ -238,6 +242,22 @@ type App struct {
 }
 
 func main() {
+	db, err := sql.Open("sqlite3", "./db/rps.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	schemaSQL, err := os.ReadFile("./db/schema.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = db.Exec(string(schemaSQL))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	app := App{
 		Port:    ":8080",
 		Service: initGameStore(),
