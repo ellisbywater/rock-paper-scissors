@@ -130,7 +130,7 @@ func NewRoundHandlers(service service.RoundService) *RoundHandlers {
 
 func (rh *RoundHandlers) Create(w http.ResponseWriter, r *http.Request) {
 	var newRoundRequest domain.RoundCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&newRoundRequest.GameId); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&newRoundRequest); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 	}
 	defer r.Body.Close()

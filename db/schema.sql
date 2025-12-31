@@ -5,12 +5,12 @@ CREATE TYPE hand AS ENUM ('rock', 'paper', 'scissors');
 
 -- 2. Players Table
 CREATE TABLE players (
-    id INTEGER PRIMARY KEY,
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     username TEXT NOT NULL
 );
 
 CREATE TABLE games (
-    id INTEGER PRIMARY KEY,
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     total_rounds INTEGER NOT NULL DEFAULT 3,
     current_round INTEGER,
     player_one_id INTEGER REFERENCES players(id),
@@ -36,7 +36,7 @@ CREATE TABLE games (
 -- );
 
 CREATE TABLE rounds (
-    id INTEGER PRIMARY KEY,
+    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     game INTEGER REFERENCES games(id),
     count INTEGER NOT NULL DEFAULT 1,
     player_one_id INTEGER REFERENCES players(id),
@@ -46,3 +46,5 @@ CREATE TABLE rounds (
     winner INTEGER REFERENCES players(id),
     finished BOOLEAN DEFAULT False
 );
+
+

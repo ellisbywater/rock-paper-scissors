@@ -30,7 +30,7 @@ func (gr *gameRepository) Create(ctx context.Context, game domain.GameCreateRequ
 			$2,
 			$3
 		 )
-		RETURNING id, created_at, player_one_id, player_two_id;
+		RETURNING id, total_rounds, current_round, created_at, player_one_id, player_two_id;
 	`
 	err := gr.db.QueryRowContext(
 		ctx,
@@ -38,7 +38,7 @@ func (gr *gameRepository) Create(ctx context.Context, game domain.GameCreateRequ
 		game.TotalRounds,
 		game.PlayerOneID,
 		game.PlayerTwoID,
-	).Scan(&res.ID, &res.CreatedAt, &res.PlayerOneId, &game.PlayerTwoID)
+	).Scan(&res.ID, &res.TotalRounds, &res.CurrentRound, &res.CreatedAt, &res.PlayerOneId, &res.PlayerTwoId)
 
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func (gr *gameRepository) Create(ctx context.Context, game domain.GameCreateRequ
 
 func (gr *gameRepository) Get(ctx context.Context, id int, res *domain.GameResponse) error {
 	query := `
-		SELECT id, total_rounds, current_round, player_one_id, player_two_id, winner, created_at
+		SELECT id, total_rounds, current_round, player_one_id, player_two_id, COALESCE(winner, 0), created_at
 		FROM games
 		WHERE id = $1;
 	`
@@ -81,7 +81,7 @@ func (pr *playerRepository) Create(ctx context.Context, player domain.PlayerCrea
 			username
 		) VALUES (
 		 	$1
-		) RETURNING id, username;
+		) RETURNING id, username
 	`
 	err := pr.db.QueryRowContext(ctx, query, player.UserName).Scan(
 		&res.ID,
@@ -106,8 +106,7 @@ func (pr *playerRepository) Get(ctx context.Context, id int, res *domain.PlayerR
 
 func (pr *playerRepository) GetGames(ctx context.Context, id int, res *[]domain.GameResponse) error {
 	query := `
-		SELECT * FROM games g WHERE player_one = $1 OR player_two = $1
-		 JOIN rounds r ON g.id = r.game;
+		SELECT * FROM games AS g JOIN rounds AS r ON g.id = r.game WHERE g.player_one_id = $1 OR g.player_two_id = $1
 	`
 	rows, err := pr.db.QueryContext(ctx, query, id)
 	if err != nil {
@@ -283,7 +282,7 @@ func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.R
 
 	var player string
 	player_query := `
-		SELECT player_one, player_two FROM games WHERE id = $1;
+		SELECT player_one_id, player_two_id FROM games WHERE id = $1;
 	`
 	type playerQueryRes struct {
 		player_one int
