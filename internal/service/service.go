@@ -1,7 +1,76 @@
 package service
 
-import "github.com/ellisbywater/http-rock-paper-scissors/internal/domain"
+import (
+	"context"
+
+	"github.com/ellisbywater/http-rock-paper-scissors/internal/domain"
+)
 
 type gameService struct {
 	repo domain.GameRepository
+}
+
+func NewGameService(repo domain.GameRepository) *gameService {
+	return &gameService{repo: repo}
+}
+
+func (gs *gameService) NewGame(ctx context.Context, total_rounds int, player_one_id int, player_two_id int) (*domain.GameCreateResponse, error) {
+	game_req := domain.GameCreateRequest{
+		TotalRounds: total_rounds,
+		PlayerOneID: player_one_id,
+		PlayerTwoID: player_two_id,
+	}
+	var game_res domain.GameCreateResponse
+	err := gs.repo.Create(ctx, game_req, &game_res)
+	if err != nil {
+		return &game_res, err
+	}
+	return &game_res, nil
+}
+
+func (gs *gameService) GetGame(ctx context.Context, id int) (*domain.GameResponse, error) {
+	var game domain.GameResponse
+	err := gs.repo.Get(ctx, id, &game)
+	if err != nil {
+		return &game, err
+	}
+	return &game, nil
+}
+
+type playerService struct {
+	repo domain.PlayerRepository
+}
+
+func NewPlayerRepository(repo domain.PlayerRepository) *playerService {
+	return &playerService{repo: repo}
+}
+
+func (ps *playerService) CreatePlayer(ctx context.Context, username string) (*domain.PlayerResponse, error) {
+	player_req := domain.PlayerCreateRequest{
+		UserName: username,
+	}
+	var player domain.PlayerResponse
+	err := ps.repo.Create(ctx, player_req, &player)
+	if err != nil {
+		return &player, err
+	}
+	return &player, nil
+}
+
+func (ps *playerService) GetPlayer(ctx context.Context, id int) (*domain.PlayerResponse, error) {
+	var player domain.PlayerResponse
+	err := ps.repo.Get(ctx, id, &player)
+	if err != nil {
+		return &player, err
+	}
+	return &player, nil
+}
+
+func (ps *playerService) GetPlayerGames(ctx context.Context, id int) (*[]domain.GameResponse, error) {
+	var games []domain.GameResponse
+	err := ps.repo.GetGames(ctx, id, &games)
+	if err != nil {
+		return &games, err
+	}
+	return &games, nil
 }
