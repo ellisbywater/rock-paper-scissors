@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/ellisbywater/http-rock-paper-scissors/internal/domain"
 	"github.com/ellisbywater/http-rock-paper-scissors/internal/service"
 )
 
@@ -26,6 +27,10 @@ type NewPlayerRequest struct {
 type RoundPlayerInput struct {
 	PlayerID int `json:"id"`
 	Hand     int `json:"hand"`
+}
+
+type RoundCreateRequest struct {
+	GameId int `json:"game_id"`
 }
 
 type GameHandlers struct {
@@ -113,4 +118,26 @@ func (ph *PlayerHandlers) GetGames(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 	json.NewEncoder(w).Encode(games)
+}
+
+type RoundHandlers struct {
+	service service.RoundService
+}
+
+func NewRoundHandlers(service service.RoundService) *RoundHandlers {
+	return &RoundHandlers{service: service}
+}
+
+func (rh *RoundHandlers) Create(w http.ResponseWriter, r *http.Request) {
+	var newRoundRequest domain.RoundCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&newRoundRequest.GameId); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	}
+	defer r.Body.Close()
+
+	round, err := rh.service.Create(r.Context(), newRoundRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	json.NewEncoder(w).Encode(round)
 }

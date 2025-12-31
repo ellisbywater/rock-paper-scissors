@@ -160,23 +160,25 @@ func (rr *roundRepository) Get(ctx context.Context, id int, res *domain.Round) e
 // TODO: Check if game is at limit of total rounds
 func (rr *roundRepository) Create(ctx context.Context, round_create_request domain.RoundCreateRequest, res *domain.RoundCreateResponse) error {
 	type checkResult struct {
-		count        int
-		total_rounds int
-		finished     bool
+		current_round int
+		total_rounds  int
+		finished      bool
+		player_one_id int
+		player_two_id int
 	}
 	var checkCountResult checkResult
 	check_count_query := `
-		SELECT count, total_rounds, finished FROM games WHERE id=$1;
+		SELECT current_round, total_rounds, player_one_id, player_two_id, finished FROM games WHERE id=$1;
 	`
-	err := rr.db.QueryRowContext(ctx, check_count_query, round_create_request.GameId).Scan(&checkCountResult.count, &checkCountResult.total_rounds, &checkCountResult.finished)
+	err := rr.db.QueryRowContext(ctx, check_count_query, round_create_request.GameId).Scan(&checkCountResult.current_round, &checkCountResult.total_rounds, &checkCountResult.player_one_id, &checkCountResult.player_two_id, &checkCountResult.finished)
 	if err != nil {
 		return err
 	}
 	if checkCountResult.finished {
 		return errors.New("Game Already Finished!")
 	}
-	if checkCountResult.count == checkCountResult.total_rounds {
-		return fmt.Errorf("Already on last round: %d", checkCountResult.count)
+	if checkCountResult.current_round == checkCountResult.total_rounds {
+		return fmt.Errorf("Already on last round: %d", checkCountResult.current_round)
 	}
 	query := `
 		INSERT INTO rounds (
@@ -195,9 +197,9 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 		ctx,
 		query,
 		round_create_request.GameId,
-		checkCountResult.count+1,
-		round_create_request.PlayerOneID,
-		round_create_request.PlayerTwoID,
+		checkCountResult.current_round+1,
+		checkCountResult.player_one_id,
+		checkCountResult.player_two_id,
 	).Scan(&res.Id)
 
 	if err != nil {

@@ -101,10 +101,7 @@ type Round struct {
 }
 
 type RoundCreateRequest struct {
-	GameId      int `json:"game_id"`
-	Count       int `json:"count"`
-	PlayerOneID int `json:"player_one_id"`
-	PlayerTwoID int `json:"player_two_id"`
+	GameId int `json:"game_id"`
 }
 
 type RoundCreateResponse struct {
