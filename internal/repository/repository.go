@@ -7,11 +7,15 @@ import (
 	"github.com/ellisbywater/http-rock-paper-scissors/internal/domain"
 )
 
-type GameRepository struct {
+type gameRepository struct {
 	db *sql.DB
 }
 
-func (gr *GameRepository) Create(ctx context.Context, game domain.GameCreateRequest, res *domain.GameCreateResponse) error {
+func NewGameRepository(db *sql.DB) domain.GameRepository {
+	return &gameRepository{db}
+}
+
+func (gr *gameRepository) Create(ctx context.Context, game domain.GameCreateRequest, res *domain.GameCreateResponse) error {
 	query := `
 		INSERT INTO games (
 			total_rounds,
@@ -38,7 +42,7 @@ func (gr *GameRepository) Create(ctx context.Context, game domain.GameCreateRequ
 	return nil
 }
 
-func (gr *GameRepository) Get(ctx context.Context, id int, res *domain.GameResponse) error {
+func (gr *gameRepository) Get(ctx context.Context, id int, res *domain.GameResponse) error {
 	query := `
 		SELECT id, total_rounds, player_one, player_two, winner, created_at
 		FROM games
@@ -58,11 +62,15 @@ func (gr *GameRepository) Get(ctx context.Context, id int, res *domain.GameRespo
 	return nil
 }
 
-type PlayerRepository struct {
+type playerRepository struct {
 	db *sql.DB
 }
 
-func (pr *PlayerRepository) Create(ctx context.Context, player domain.PlayerCreateRequest, res *domain.PlayerResponse) error {
+func NewPlayerRepository(db *sql.DB) domain.PlayerRepository {
+	return &playerRepository{db}
+}
+
+func (pr *playerRepository) Create(ctx context.Context, player domain.PlayerCreateRequest, res *domain.PlayerResponse) error {
 	query := `
 		INSERT INTO players (
 			username
@@ -80,7 +88,7 @@ func (pr *PlayerRepository) Create(ctx context.Context, player domain.PlayerCrea
 	return nil
 }
 
-func (pr *PlayerRepository) Get(ctx context.Context, id int, res *domain.PlayerResponse) error {
+func (pr *playerRepository) Get(ctx context.Context, id int, res *domain.PlayerResponse) error {
 	query := `
 		SELECT * FROM players WHERE id=$1;
 	`
@@ -91,7 +99,7 @@ func (pr *PlayerRepository) Get(ctx context.Context, id int, res *domain.PlayerR
 	return nil
 }
 
-func (pr *PlayerRepository) GetGames(ctx context.Context, id int, res *[]domain.GameResponse) error {
+func (pr *playerRepository) GetGames(ctx context.Context, id int, res *[]domain.GameResponse) error {
 	query := `
 		SELECT * FROM games g WHERE player_one = $1 OR player_two = $1
 		 JOIN rounds r ON g.id = r.game;
@@ -125,11 +133,26 @@ func (pr *PlayerRepository) GetGames(ctx context.Context, id int, res *[]domain.
 	return nil
 }
 
-type RoundRepository struct {
+type roundRepository struct {
 	db *sql.DB
 }
 
-func (rr *RoundRepository) Create(ctx context.Context, round_create_request domain.RoundCreateRequest, res *domain.RoundCreateResponse) error {
+func NewRoundRepository(db *sql.DB) domain.RoundRepository {
+	return &roundRepository{db}
+}
+
+func (rr *roundRepository) Get(ctx context.Context, id int, res *domain.Round) error {
+	query := `
+		SELECT * FROM rounds WHERE id=$1
+	`
+	err := rr.db.QueryRowContext(ctx, query, id).Scan(&res.ID, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (rr *roundRepository) Create(ctx context.Context, round_create_request domain.RoundCreateRequest, res *domain.RoundCreateResponse) error {
 	query := `
 		INSERT INTO rounds (
 			game,
@@ -152,6 +175,29 @@ func (rr *RoundRepository) Create(ctx context.Context, round_create_request doma
 		round_create_request.PlayerTwoID,
 	).Scan(&res.Id)
 
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.RoundPlayerInput, res *domain.Round) error {
+	query := `
+		UPDATE rounds SET $1 = $2 WHERE id = $3 RETURNING *;
+	`
+	var player string
+	if player_input.IsPlayerOne {
+		player = "player_one_hand"
+	} else {
+		player = "player_two_hand"
+	}
+	err := rr.db.QueryRowContext(ctx, query, player, player_input.Hand, player_input.RoundId).Scan(
+		&res.ID,
+		&res.Count,
+		&res.PlayerOneHand,
+		&res.PlayerTwoHand,
+		&res.Winner,
+	)
 	if err != nil {
 		return err
 	}

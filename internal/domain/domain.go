@@ -82,11 +82,11 @@ type GameCreateRequest struct {
 }
 
 type Round struct {
-	ID        int
-	Count     int
-	PlayerOne RoundPlayerInput
-	PlayerTwo RoundPlayerInput
-	Winner    int
+	ID            int
+	Count         int
+	PlayerOneHand Hand
+	PlayerTwoHand Hand
+	Winner        int
 }
 
 type RoundCreateRequest struct {
@@ -114,8 +114,9 @@ type Score struct {
 }
 
 type RoundPlayerInput struct {
-	PlayerID int  `json:"player_id"`
-	Hand     Hand `json:"hand"`
+	RoundId     int  `json:"round_id"`
+	IsPlayerOne bool `json:"is_player_one"`
+	Hand        Hand `json:"hand"`
 }
 
 type PlayerRepository interface {
@@ -131,6 +132,6 @@ type GameRepository interface {
 
 type RoundRepository interface {
 	Create(ctx context.Context, round_create_request RoundCreateRequest, res *RoundCreateResponse) error
-	PlayHand(ctx context.Context, player_input RoundPlayerInput)
+	UpdateHand(ctx context.Context, player_input RoundPlayerInput, res *Round) error
 	Get(ctx context.Context, id int, res *Round) error
 }

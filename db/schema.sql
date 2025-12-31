@@ -38,7 +38,7 @@ CREATE TABLE rounds (
     count INTEGER NOT NULL DEFAULT 1,
     player_one INTEGER REFERENCES players(id),
     player_two INTEGER REFERENCES players(id),
-    player_one_input hand,
-    player_two_input hand,
+    player_one_hand hand,
+    player_two_hand hand,
     winner INTEGER REFERENCES players(id)
 );
