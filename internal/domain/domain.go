@@ -55,15 +55,23 @@ type Game struct {
 }
 
 type GameResponse struct {
-	ID          int            `json:"id"`
-	TotalRounds int            `json:"total_rounds"`
-	PlayerOne   PlayerResponse `json:"player_one"`
-	PlayerTwo   PlayerResponse `json:"player_two"`
-	Winner      int            `json:"winner"`
-	Score       Score          `json:"score"`
-	Finished    bool           `json:"finished"`
+	ID          int       `json:"id"`
+	TotalRounds int       `json:"total_rounds"`
+	PlayerOneId int       `json:"player_one"`
+	PlayerTwoId int       `json:"player_two"`
+	Winner      int       `json:"winner"`
+	Score       Score     `json:"score"`
+	Finished    bool      `json:"finished"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
+type GameCreateResponse struct {
+	ID          int       `json:"id"`
+	TotalRounds int       `json:"total_rounds"`
+	PlayerOneId int       `json:"player_one_id"`
+	PlayerTwoId int       `json:"player_two_id"`
+	CreatedAt   time.Time `json:"created_at"`
+}
 type GameCreateRequest struct {
 	TotalRounds int `json:"total_rounds"`
 	PlayerOneID int `json:"player_one_id"`
@@ -106,18 +114,18 @@ type RoundPlayerInput struct {
 }
 
 type PlayerRepository interface {
-	Create(ctx context.Context, player PlayerCreateRequest) (error, PlayerResponse)
-	Get(ctx context.Context, id int) (error, PlayerResponse)
-	GetGames(ctx context.Context, id int) (error, []GameResponse)
+	Create(ctx context.Context, player PlayerCreateRequest, res *PlayerResponse) error
+	Get(ctx context.Context, id int, res *PlayerResponse) error
+	GetGames(ctx context.Context, id int, res *[]GameResponse) error
 }
 
 type GameRepository interface {
-	Create(ctx context.Context, game GameCreateRequest) (error, GameResponse)
-	Get(ctx context.Context, id int) (error, GameResponse)
+	Create(ctx context.Context, game GameCreateRequest, res *GameCreateResponse) error
+	Get(ctx context.Context, id int, res *GameResponse) error
 }
 
 type RoundRepository interface {
-	Create(ctx context.Context, round_create_request RoundCreateRequest) (error, RoundCreateResponse)
+	Create(ctx context.Context, round_create_request RoundCreateRequest, res *RoundCreateResponse) error
 	PlayHand(ctx context.Context, player_input RoundPlayerInput)
-	Get(ctx context.Context, id int) (error, RoundCreateResponse)
+	Get(ctx context.Context, id int, res *Round) error
 }
