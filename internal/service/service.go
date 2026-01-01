@@ -104,6 +104,7 @@ func (rs *RoundService) Get(ctx context.Context, id int) (*domain.RoundContext, 
 
 func (rs *RoundService) UpdateHand(ctx context.Context, hand string, req domain.RoundContext) (*domain.RoundContext, error) {
 	err := rs.repo.UpdateHand(ctx, hand, &req)
+	fmt.Println("RoundService >> GameID:  ", &req.GameID)
 	if err != nil {
 		return &req, err
 	}

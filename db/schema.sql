@@ -15,11 +15,11 @@ CREATE TABLE players (
 CREATE TABLE games (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     total_rounds INTEGER NOT NULL DEFAULT 3,
-    current_round INTEGER,
+    current_round INTEGER DEFAULT 1,
     player_one_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
     player_two_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
-    player_one_score INTEGER,
-    player_two_score INTEGER,
+    player_one_score INTEGER DEFAULT 0,
+    player_two_score INTEGER DEFAULT 0,
     winner INTEGER REFERENCES players(id),
     finished BOOLEAN DEFAULT False,
     created_at timestamptz DEFAULT NOW()

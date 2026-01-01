@@ -178,9 +178,6 @@ func (rr *roundRepository) Create(ctx context.Context, res *domain.RoundContext)
 	if newGameContext.finished {
 		return errors.New("Game Already Finished! Start a new round: /game/{gameId}/round/create")
 	}
-	if newGameContext.current_round == newGameContext.total_rounds {
-		return fmt.Errorf("Already on last round: %d", newGameContext.current_round)
-	}
 	query := `
 		INSERT INTO rounds (
 			game,
@@ -198,7 +195,7 @@ func (rr *roundRepository) Create(ctx context.Context, res *domain.RoundContext)
 		ctx,
 		query,
 		res.GameID,
-		newGameContext.current_round+1,
+		newGameContext.current_round,
 		newGameContext.player_one_id,
 		newGameContext.player_two_id,
 	).Scan(&res.ID, &res.GameID, &res.Count, &res.PlayerOneID, &res.PlayerTwoID)
@@ -237,7 +234,7 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.Round
 		case res.PlayerTwoID:
 			player_score_name = "player_two_score"
 		default:
-			winner_query = `UPDATE rounds SET winner=NULL, finished=True WHERE id=$1 RETURNING *;`
+			winner_query = `UPDATE rounds SET winner=NULL, finished=True WHERE id=$1 RETURNING *`
 			player_score_name = ""
 		}
 	} else {
@@ -269,13 +266,15 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.Round
 		return err
 	}
 
-	type checkGameCount struct {
-		total_rounds  int
-		current_round int
+	type GameContext struct {
+		TotalRounds    int `json:"total_rounds"`
+		CurrentRound   int `json:"current_round"`
+		PlayerOneScore int `json:"player_one_score"`
+		PlayerTwoScore int `json:"player_two_score"`
 	}
-	var gameCount checkGameCount
+	var gameCtx GameContext
 	// Update current round
-	err = rr.db.QueryRowContext(ctx, "UPDATE games SET current_round = current_round + 1 WHERE id=$1 RETURNING current_round, total_rounds;", res.GameID).Scan(&gameCount.current_round, &gameCount.total_rounds)
+	err = rr.db.QueryRowContext(ctx, "UPDATE games SET current_round = current_round + 1 WHERE id=$1 RETURNING current_round, total_rounds", res.GameID).Scan(&gameCtx.CurrentRound, &gameCtx.TotalRounds)
 	if err != nil {
 		return err
 	}
@@ -285,25 +284,28 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.Round
 	if len(player_score_name) != 0 {
 		switch player_score_name {
 		case "player_one_score":
-			score_query = `UPDATE games SET player_one_score = player_one_score + 1 WHERE id=$1;`
+			score_query = `UPDATE games SET player_one_score=player_one_score + 1 WHERE id=$1 RETURNING player_one_score, player_two_score`
 		case "player_two_score":
-			score_query = `UPDATE games SET player_two_score = player_two_score + 1 WHERE id=$1;`
+			score_query = `UPDATE games SET player_two_score=player_two_score +1 WHERE id=$1 RETURNING player_one_score, player_two_score`
 		default:
-			score_query = ""
+			score_query = "SELECT player_one_score, player_two_score WHERE id=$1"
 		}
-		if len(score_query) > 0 {
-			_ = rr.db.QueryRowContext(ctx, score_query, res.GameID)
-		}
+		err = rr.db.QueryRowContext(ctx, score_query, res.GameID).Scan(&gameCtx.PlayerOneScore, &gameCtx.PlayerTwoScore)
+
 	}
 
-	type Scoreboard struct {
-		PlayerOneScore int
-		PlayerTwoScore int
+	var gameWinner int
+	switch {
+	case gameCtx.PlayerOneScore > gameCtx.PlayerTwoScore:
+		gameWinner = res.PlayerOneID
+	case gameCtx.PlayerOneScore < gameCtx.PlayerTwoScore:
+		gameWinner = res.PlayerTwoID
+	default:
+		gameWinner = 0
 	}
-	var finalScoreboard Scoreboard
-	if gameCount.current_round > gameCount.total_rounds {
-		err = rr.db.QueryRowContext(ctx, "UPDATE games SET finished=True WHERE id=$1 RETURNING player_one_score, player_two_score", res.GameID).Scan(&finalScoreboard.PlayerOneScore, &finalScoreboard.PlayerTwoScore)
-		fmt.Printf("GAME OVER! Score >> Player One: %d | Player Two: %d", &finalScoreboard.PlayerOneScore, &finalScoreboard.PlayerTwoScore)
+
+	if gameCtx.CurrentRound > gameCtx.TotalRounds {
+		_ = rr.db.QueryRowContext(ctx, "UPDATE games SET finished=True, winner=$1 WHERE id=$2 RETURNING player_one_score, player_two_score", gameWinner, res.GameID)
 	}
 
 	return nil
@@ -358,6 +360,7 @@ func (rr *roundRepository) UpdateHand(ctx context.Context, hand string, res *dom
 	// Query to set the player hand
 	_ = rr.db.QueryRowContext(ctx, set_player_hand_query, res.CurrentPlayerHand(), &res.ID)
 	err = rr.CheckForWinner(ctx, res)
+
 	if err != nil {
 		return err
 	}
