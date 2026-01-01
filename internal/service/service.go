@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ellisbywater/http-rock-paper-scissors/internal/domain"
 )
@@ -72,6 +73,7 @@ func (ps *PlayerService) GetPlayerGames(ctx context.Context, id int) (*[]domain.
 	if err != nil {
 		return &games, err
 	}
+	fmt.Println("Player Games: ", &games)
 	return &games, nil
 }
 

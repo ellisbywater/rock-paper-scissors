@@ -113,7 +113,7 @@ func (pr *playerRepository) GetGames(ctx context.Context, id int, res *[]domain.
 	if err != nil {
 		return err
 	}
-
+	var games []domain.GameResponse
 	for rows.Next() {
 		var game domain.GameResponse
 		err := rows.Scan(
@@ -130,11 +130,13 @@ func (pr *playerRepository) GetGames(ctx context.Context, id int, res *[]domain.
 		if err != nil {
 			return err
 		}
+		games = append(games, game)
 	}
 
 	if err := rows.Err(); err != nil {
 		return err
 	}
+	res = &games
 	return nil
 }
 
@@ -174,7 +176,7 @@ func (rr *roundRepository) Create(ctx context.Context, res *domain.RoundContext)
 		return err
 	}
 	if newGameContext.finished {
-		return errors.New("Game Already Finished!")
+		return errors.New("Game Already Finished! Start a new round: /game/{gameId}/round/create")
 	}
 	if newGameContext.current_round == newGameContext.total_rounds {
 		return fmt.Errorf("Already on last round: %d", newGameContext.current_round)
@@ -294,16 +296,18 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.Round
 		}
 	}
 
-	if gameCount.current_round == gameCount.total_rounds {
-		_ = rr.db.QueryRowContext(ctx, "UPDATE games SET finished=True WHERE id=$1;", res.GameID)
+	type Scoreboard struct {
+		PlayerOneScore int
+		PlayerTwoScore int
+	}
+	var finalScoreboard Scoreboard
+	if gameCount.current_round > gameCount.total_rounds {
+		err = rr.db.QueryRowContext(ctx, "UPDATE games SET finished=True WHERE id=$1 RETURNING player_one_score, player_two_score", res.GameID).Scan(&finalScoreboard.PlayerOneScore, &finalScoreboard.PlayerTwoScore)
+		fmt.Printf("GAME OVER! Score >> Player One: %d | Player Two: %d", &finalScoreboard.PlayerOneScore, &finalScoreboard.PlayerTwoScore)
 	}
 
 	return nil
 }
-
-// func (rr *roundRepository) checkIfPlayerAlreadyPlayed(ctx context.Context, playerId int, roundId int) bool {
-// 	var roundQuery string
-// }
 
 func (rr *roundRepository) UpdateHand(ctx context.Context, hand string, res *domain.RoundContext) error {
 	// Query Game player ids
