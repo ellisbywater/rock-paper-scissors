@@ -84,12 +84,11 @@ func NewRoundService(repo domain.RoundRepository) *RoundService {
 }
 
 func (rs *RoundService) Create(ctx context.Context, req domain.RoundContext) (*domain.RoundContext, error) {
-	var round_res domain.RoundContext
-	err := rs.repo.Create(ctx, req, &round_res)
+	err := rs.repo.Create(ctx, &req)
 	if err != nil {
-		return &round_res, err
+		return &req, err
 	}
-	return &round_res, nil
+	return &req, nil
 }
 
 func (rs *RoundService) Get(ctx context.Context, id int) (*domain.RoundContext, error) {
@@ -101,11 +100,10 @@ func (rs *RoundService) Get(ctx context.Context, id int) (*domain.RoundContext, 
 	return &round_res, nil
 }
 
-func (rs *RoundService) UpdateHand(ctx context.Context, hand domain.RoundContext) (*domain.RoundContext, error) {
-	var round_res domain.RoundContext
-	err := rs.repo.UpdateHand(ctx, hand, &round_res)
+func (rs *RoundService) UpdateHand(ctx context.Context, req domain.RoundContext) (*domain.RoundContext, error) {
+	err := rs.repo.UpdateHand(ctx, &req)
 	if err != nil {
-		return &round_res, err
+		return &req, err
 	}
-	return &round_res, nil
+	return &req, nil
 }

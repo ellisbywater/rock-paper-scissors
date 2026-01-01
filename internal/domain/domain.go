@@ -240,7 +240,7 @@ type GameRepository interface {
 }
 
 type RoundRepository interface {
-	Create(ctx context.Context, round_create_request RoundContext, res *RoundContext) error
-	UpdateHand(ctx context.Context, player_input RoundContext, res *RoundContext) error
+	Create(ctx context.Context, res *RoundContext) error
+	UpdateHand(ctx context.Context, res *RoundContext) error
 	Get(ctx context.Context, id int, res *RoundContext) error
 }

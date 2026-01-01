@@ -157,7 +157,6 @@ func (rr *roundRepository) Get(ctx context.Context, id int, res *domain.RoundCon
 	return nil
 }
 
-// TODO: Check if game is at limit of total rounds
 func (rr *roundRepository) Create(ctx context.Context, round_create_request domain.RoundContext, res *domain.RoundContext) error {
 	type gameContext struct {
 		current_round int
@@ -212,7 +211,7 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 // Checks For Winner
 // Updates Score
 // Updates game finished
-func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, game_id int, res *domain.RoundContext) error {
+func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.RoundContext) error {
 	type handsResults struct {
 		player_one_id   int
 		player_two_id   int
@@ -224,7 +223,7 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 		SELECT player_one_id, player_two_id, COALESCE(player_one_hand, 'none'), COALESCE(player_two_hand, 'none') FROM rounds WHERE id = $1
 	`
 	// Retrieve Fields for comparison
-	err := rr.db.QueryRowContext(ctx, query_player_select, round_id).Scan(&results.player_one_id, &results.player_two_id, &results.player_one_hand, &results.player_two_hand)
+	err := rr.db.QueryRowContext(ctx, query_player_select, res.ID).Scan(&results.player_one_id, &results.player_two_id, &results.player_one_hand, &results.player_two_hand)
 	fmt.Println("CheckWinner HandsResults: ", results)
 	if err != nil {
 		return err
@@ -262,7 +261,7 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 							COALESCE(winner, 0), 
 							finished
 							FROM rounds WHERE id=$1`
-		err := rr.db.QueryRowContext(ctx, no_winner_query, round_id).Scan(&res.ID, &res.GameID, &res.Count, &res.PlayerOneID, &res.PlayerTwoID, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
+		err := rr.db.QueryRowContext(ctx, no_winner_query, res.ID).Scan(&res.ID, &res.GameID, &res.Count, &res.PlayerOneID, &res.PlayerTwoID, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
 		if err != nil {
 			return err
 		}
@@ -270,7 +269,7 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 	}
 
 	// Update Round Winner
-	row := rr.db.QueryRowContext(ctx, winner_query, winPlayerId, round_id)
+	row := rr.db.QueryRowContext(ctx, winner_query, winPlayerId, res.ID)
 	fmt.Println("Update round winner row context: ", row)
 
 	err = row.Scan(&res.ID, &res.GameID, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
@@ -284,7 +283,7 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 	}
 	var gameCount checkGameCount
 	// Update current round
-	err = rr.db.QueryRowContext(ctx, "UPDATE games SET current_round = current_round + 1 WHERE id=$1 RETURNING current_round, total_rounds;", game_id).Scan(&gameCount.current_round, &gameCount.total_rounds)
+	err = rr.db.QueryRowContext(ctx, "UPDATE games SET current_round = current_round + 1 WHERE id=$1 RETURNING current_round, total_rounds;", res.GameID).Scan(&gameCount.current_round, &gameCount.total_rounds)
 	if err != nil {
 		return err
 	}
@@ -301,12 +300,12 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 			score_query = ""
 		}
 		if len(score_query) > 0 {
-			_ = rr.db.QueryRowContext(ctx, score_query, game_id)
+			_ = rr.db.QueryRowContext(ctx, score_query, res.GameID)
 		}
 	}
 
 	if gameCount.current_round == gameCount.total_rounds {
-		_ = rr.db.QueryRowContext(ctx, "UPDATE games SET finished=True WHERE id=$1;", game_id)
+		_ = rr.db.QueryRowContext(ctx, "UPDATE games SET finished=True WHERE id=$1;", res.GameID)
 	}
 
 	return nil
@@ -316,7 +315,7 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, round_id int, gam
 // 	var roundQuery string
 // }
 
-func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.RoundContext, res *domain.RoundContext) error {
+func (rr *roundRepository) UpdateHand(ctx context.Context, res *domain.RoundContext) error {
 
 	player_query := `
 		SELECT player_one_id, player_two_id FROM games WHERE id = $1;
@@ -327,20 +326,20 @@ func (rr *roundRepository) UpdateHand(ctx context.Context, player_input domain.R
 	}
 	var player_query_res playerQueryRes
 	// Query Game player ids
-	err := rr.db.QueryRowContext(ctx, player_query, player_input.GameID).Scan(&player_query_res.player_one, &player_query_res.player_two)
+	err := rr.db.QueryRowContext(ctx, player_query, &res.GameID).Scan(&player_query_res.player_one, &player_query_res.player_two)
 
 	var set_player_hand_query string
-	switch player_input.CurrentPlayer {
-	case player_query_res.player_one:
+	switch &res.CurrentPlayer {
+	case &res.PlayerOneID:
 		set_player_hand_query = `UPDATE rounds SET player_one_hand = $1 WHERE id = $2`
-	case player_query_res.player_two:
+	case &res.PlayerTwoID:
 		set_player_hand_query = "UPDATE rounds SET player_two_hand = $1 WHERE id = $2"
 	default:
 		return errors.New("Player does not belong here or is missing")
 	}
 	// Query to set the player hand
-	_ = rr.db.QueryRowContext(ctx, set_player_hand_query, player_input.CurrentPlayerHand(), player_input.ID)
-	err = rr.CheckForWinner(ctx, player_input.ID, player_input.GameID, res)
+	_ = rr.db.QueryRowContext(ctx, set_player_hand_query, res.CurrentPlayerHand(), &res.ID)
+	err = rr.CheckForWinner(ctx, res)
 	if err != nil {
 		return err
 	}
