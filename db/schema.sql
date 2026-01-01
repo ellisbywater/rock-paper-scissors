@@ -9,7 +9,7 @@ CREATE TYPE hand AS ENUM ('none','rock', 'paper', 'scissors');
 -- 2. Players Table
 CREATE TABLE players (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    username TEXT NOT NULL
+    username TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE games (

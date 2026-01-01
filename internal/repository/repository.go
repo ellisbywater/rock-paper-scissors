@@ -157,7 +157,7 @@ func (rr *roundRepository) Get(ctx context.Context, id int, res *domain.RoundCon
 	return nil
 }
 
-func (rr *roundRepository) Create(ctx context.Context, round_create_request domain.RoundContext, res *domain.RoundContext) error {
+func (rr *roundRepository) Create(ctx context.Context, res *domain.RoundContext) error {
 	type gameContext struct {
 		current_round int
 		total_rounds  int
@@ -169,7 +169,7 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 	check_count_query := `
 		SELECT current_round, total_rounds, player_one_id, player_two_id, finished FROM games WHERE id=$1;
 	`
-	err := rr.db.QueryRowContext(ctx, check_count_query, round_create_request.GameID).Scan(&newGameContext.current_round, &newGameContext.total_rounds, &newGameContext.player_one_id, &newGameContext.player_two_id, &newGameContext.finished)
+	err := rr.db.QueryRowContext(ctx, check_count_query, res.GameID).Scan(&newGameContext.current_round, &newGameContext.total_rounds, &newGameContext.player_one_id, &newGameContext.player_two_id, &newGameContext.finished)
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 	err = rr.db.QueryRowContext(
 		ctx,
 		query,
-		round_create_request.GameID,
+		res.GameID,
 		newGameContext.current_round+1,
 		newGameContext.player_one_id,
 		newGameContext.player_two_id,
@@ -212,37 +212,27 @@ func (rr *roundRepository) Create(ctx context.Context, round_create_request doma
 // Updates Score
 // Updates game finished
 func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.RoundContext) error {
-	type handsResults struct {
-		player_one_id   int
-		player_two_id   int
-		player_one_hand domain.Hand
-		player_two_hand domain.Hand
-	}
-	var results handsResults
+
 	query_player_select := `
 		SELECT player_one_id, player_two_id, COALESCE(player_one_hand, 'none'), COALESCE(player_two_hand, 'none') FROM rounds WHERE id = $1
 	`
 	// Retrieve Fields for comparison
-	err := rr.db.QueryRowContext(ctx, query_player_select, res.ID).Scan(&results.player_one_id, &results.player_two_id, &results.player_one_hand, &results.player_two_hand)
-	fmt.Println("CheckWinner HandsResults: ", results)
+	err := rr.db.QueryRowContext(ctx, query_player_select, res.ID).Scan(&res.PlayerOneID, &res.PlayerTwoID, &res.PlayerOneHand, &res.PlayerTwoHand)
 	if err != nil {
 		return err
 	}
 
 	winner_query := `UPDATE rounds SET winner = $1, finished = True WHERE id = $2 RETURNING * `
 
-	var winPlayerId int
 	var player_score_name string //dynamic query string
 	// Calculate score and create respective queries
-	if results.player_one_hand != "none" && results.player_two_hand != "none" {
-		winner_num := resolveHands(string(results.player_one_hand), string(results.player_two_hand))
-		fmt.Println("Winner Number: ", winner_num)
-		switch winner_num {
-		case 1:
-			winPlayerId = results.player_one_id
+	winner := res.CalculateWinner()
+	if winner.PlayerID != 0 {
+		fmt.Println("Winner: ", winner)
+		switch winner.PlayerID {
+		case res.PlayerOneID:
 			player_score_name = "player_one_score"
-		case 2:
-			winPlayerId = results.player_two_id
+		case res.PlayerTwoID:
 			player_score_name = "player_two_score"
 		default:
 			winner_query = `UPDATE rounds SET winner=NULL, finished=True WHERE id=$1 RETURNING *;`
@@ -269,10 +259,10 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.Round
 	}
 
 	// Update Round Winner
-	row := rr.db.QueryRowContext(ctx, winner_query, winPlayerId, res.ID)
+	row := rr.db.QueryRowContext(ctx, winner_query, winner.PlayerID, res.ID)
 	fmt.Println("Update round winner row context: ", row)
 
-	err = row.Scan(&res.ID, &res.GameID, &res.Count, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
+	err = row.Scan(&res.ID, &res.GameID, &res.Count, &res.PlayerOneID, &res.PlayerTwoID, &res.PlayerOneHand, &res.PlayerTwoHand, &res.Winner, &res.Finished)
 	if err != nil {
 		return err
 	}
@@ -315,24 +305,48 @@ func (rr *roundRepository) CheckForWinner(ctx context.Context, res *domain.Round
 // 	var roundQuery string
 // }
 
-func (rr *roundRepository) UpdateHand(ctx context.Context, res *domain.RoundContext) error {
-
+func (rr *roundRepository) UpdateHand(ctx context.Context, hand string, res *domain.RoundContext) error {
+	// Query Game player ids
 	player_query := `
 		SELECT player_one_id, player_two_id FROM games WHERE id = $1;
 	`
-	type playerQueryRes struct {
-		player_one int
-		player_two int
+	err := rr.db.QueryRowContext(ctx, player_query, &res.GameID).Scan(&res.PlayerOneID, &res.PlayerTwoID)
+	if err != nil {
+		return err
 	}
-	var player_query_res playerQueryRes
-	// Query Game player ids
-	err := rr.db.QueryRowContext(ctx, player_query, &res.GameID).Scan(&player_query_res.player_one, &player_query_res.player_two)
+
+	err = res.CheckCurrentPlayer()
+	if err != nil {
+		return err
+	}
+
+	if res.CurrentPlayer == res.PlayerOneID {
+		truth := res.HasPlayerOnePlayed()
+		if truth {
+			return errors.New("Sneaky, Sneaky, You have already played.")
+		}
+	} else if res.CurrentPlayer == res.PlayerTwoID {
+		truth := res.HasPlayerTwoPlayed()
+		if truth {
+			return errors.New("Sneaky, Sneaky, You have already played.")
+		}
+	}
+
+	err = res.SetHandOnCurrentPlayer(hand)
+	if err != nil {
+		return err
+	}
+
+	currentPlayerContext := res.CurrentPlayerContext()
+	if currentPlayerContext.ID == 0 {
+		return errors.New("Current Player is not in this game.")
+	}
 
 	var set_player_hand_query string
-	switch &res.CurrentPlayer {
-	case &res.PlayerOneID:
+	switch currentPlayerContext.ID {
+	case res.PlayerOneID:
 		set_player_hand_query = `UPDATE rounds SET player_one_hand = $1 WHERE id = $2`
-	case &res.PlayerTwoID:
+	case res.PlayerTwoID:
 		set_player_hand_query = "UPDATE rounds SET player_two_hand = $1 WHERE id = $2"
 	default:
 		return errors.New("Player does not belong here or is missing")
@@ -345,44 +359,4 @@ func (rr *roundRepository) UpdateHand(ctx context.Context, res *domain.RoundCont
 	}
 	fmt.Println("CheckForWinner Response: ", res)
 	return nil
-}
-
-/**
-UTIL Functions
-**/
-// resolve winner from hands
-func resolveHands(hand_one string, hand_two string) int {
-	switch hand_one {
-	case "rock":
-		if hand_two == "paper" {
-			return 2
-		}
-		if hand_two == "scissors" {
-			return 1
-		}
-		if hand_two == "rock" {
-			return 0
-		}
-	case "scissors":
-		if hand_two == "rock" {
-			return 2
-		}
-		if hand_two == "paper" {
-			return 1
-		}
-		if hand_two == "scissors" {
-			return 0
-		}
-	case "paper":
-		if hand_two == "scissors" {
-			return 2
-		}
-		if hand_two == "rock" {
-			return 1
-		}
-		if hand_two == "paper" {
-			return 0
-		}
-	}
-	return 0
 }

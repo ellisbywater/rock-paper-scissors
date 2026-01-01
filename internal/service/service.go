@@ -100,8 +100,8 @@ func (rs *RoundService) Get(ctx context.Context, id int) (*domain.RoundContext, 
 	return &round_res, nil
 }
 
-func (rs *RoundService) UpdateHand(ctx context.Context, req domain.RoundContext) (*domain.RoundContext, error) {
-	err := rs.repo.UpdateHand(ctx, &req)
+func (rs *RoundService) UpdateHand(ctx context.Context, hand string, req domain.RoundContext) (*domain.RoundContext, error) {
+	err := rs.repo.UpdateHand(ctx, hand, &req)
 	if err != nil {
 		return &req, err
 	}

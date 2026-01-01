@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -152,15 +153,26 @@ func (rh *RoundHandlers) PlayHand(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Invalid game id", http.StatusBadRequest)
 	}
-	var playHandRequest domain.RoundContext
+
+	type PlayHandRequest struct {
+		CurrentPlayer int    `json:"current_player"`
+		Hand          string `json:"hand"`
+	}
+
+	var playHandRequest PlayHandRequest
+	var roundCtx domain.RoundContext
 	if err := json.NewDecoder(r.Body).Decode(&playHandRequest); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 	}
 	defer r.Body.Close()
 
-	playHandRequest.ID = roundId
-	playHandRequest.GameID = gameId
-	hand, err := rh.service.UpdateHand(r.Context(), playHandRequest)
+	roundCtx = domain.RoundContext{
+		ID:     roundId,
+		GameID: gameId,
+	}
+	roundCtx.SetCurrentPlayerUnsafe(playHandRequest.CurrentPlayer)
+	fmt.Println("Current Player in PlayHand is: ", roundCtx.CurrentPlayer)
+	hand, err := rh.service.UpdateHand(r.Context(), playHandRequest.Hand, roundCtx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}

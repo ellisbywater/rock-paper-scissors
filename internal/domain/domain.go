@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -123,17 +124,55 @@ func (rc *RoundContext) PlayerTwoHandContext() PlayerHandContext {
 }
 
 func (rc *RoundContext) HasPlayerOnePlayed() bool {
-	if rc.PlayerOneHand == "none" {
+	if rc.PlayerOneHand == "none" || rc.PlayerOneHand == "" {
 		return false
 	}
 	return true
 }
 
 func (rc *RoundContext) HasPlayerTwoPlayed() bool {
-	if rc.PlayerTwoHand == "none" {
+	if rc.PlayerTwoHand == "none" || rc.PlayerTwoHand == "" {
 		return false
 	}
 	return true
+}
+
+func (rc *RoundContext) SetCurrentPlayer(id int) error {
+	switch id {
+	case rc.PlayerOneID:
+		rc.CurrentPlayer = rc.PlayerOneID
+		return nil
+	case rc.PlayerTwoID:
+		rc.CurrentPlayer = rc.PlayerTwoID
+		return nil
+	default:
+		return errors.New("Invalid id on SetCurrentPlayer")
+	}
+}
+
+func (rc *RoundContext) SetCurrentPlayerUnsafe(id int) {
+	rc.CurrentPlayer = id
+}
+
+// Created for semantics
+func (rc *RoundContext) CheckCurrentPlayer() error {
+	err := rc.SetCurrentPlayer(rc.CurrentPlayer)
+	if err != nil {
+		return errors.New("CurrentPlayer is Invalid")
+	}
+	return nil
+}
+
+func (rc *RoundContext) SetHandOnCurrentPlayer(hand string) error {
+	switch rc.CurrentPlayer {
+	case rc.PlayerOneID:
+		rc.PlayerOneHand = hand
+	case rc.PlayerTwoID:
+		rc.PlayerTwoHand = hand
+	default:
+		return errors.New("Invalid hand or CurrentPlayer on SetHandOnCurrentPlayer")
+	}
+	return nil
 }
 
 func (rc *RoundContext) CurrentPlayerHand() string {
@@ -145,6 +184,25 @@ func (rc *RoundContext) CurrentPlayerHand() string {
 	default:
 		return ""
 	}
+}
+
+func (rc *RoundContext) CurrentPlayerID() int {
+	switch rc.CurrentPlayer {
+	case rc.PlayerOneID:
+		return rc.PlayerOneID
+	case rc.PlayerTwoID:
+		return rc.PlayerTwoID
+	default:
+		return 0
+	}
+}
+
+func (rc *RoundContext) CurrentPlayerContext() PlayerHandContext {
+	ctx := PlayerHandContext{
+		ID:   rc.CurrentPlayerID(),
+		Hand: rc.CurrentPlayerHand(),
+	}
+	return ctx
 }
 
 type WinnerContext struct {
@@ -241,6 +299,6 @@ type GameRepository interface {
 
 type RoundRepository interface {
 	Create(ctx context.Context, res *RoundContext) error
-	UpdateHand(ctx context.Context, res *RoundContext) error
+	UpdateHand(ctx context.Context, hand string, res *RoundContext) error
 	Get(ctx context.Context, id int, res *RoundContext) error
 }
