@@ -144,6 +144,7 @@ func (rh *RoundHandlers) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(round)
 }
 
+// TODO: Change roundId to roundCount and move roundId to r.Body
 func (rh *RoundHandlers) PlayHand(w http.ResponseWriter, r *http.Request) {
 	roundId, err := strconv.Atoi(r.PathValue("roundId"))
 	if err != nil {

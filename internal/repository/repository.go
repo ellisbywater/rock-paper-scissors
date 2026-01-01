@@ -107,36 +107,46 @@ func (pr *playerRepository) Get(ctx context.Context, id int, res *domain.PlayerR
 
 func (pr *playerRepository) GetGames(ctx context.Context, id int, res *[]domain.GameResponse) error {
 	query := `
-		SELECT * FROM games AS g JOIN rounds AS r ON g.id = r.game WHERE g.player_one_id = $1 OR g.player_two_id = $1
+		SELECT 
+		id,
+		total_rounds,
+		current_round,
+		player_one_id,
+		player_two_id,
+		player_one_score,
+		player_two_score,
+		COALESCE(winner, 0),
+		finished,
+		created_at FROM games WHERE player_one_id = $1 OR player_two_id = $1
 	`
 	rows, err := pr.db.QueryContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
-	var games []domain.GameResponse
 	for rows.Next() {
 		var game domain.GameResponse
 		err := rows.Scan(
 			&game.ID,
 			&game.TotalRounds,
+			&game.CurrentRound,
 			&game.PlayerOneId,
 			&game.PlayerTwoId,
 			&game.PlayerOneScore,
 			&game.PlayerTwoScore,
-			&game.Rounds,
+			&game.Winner,
 			&game.Finished,
 			&game.CreatedAt,
 		)
 		if err != nil {
 			return err
 		}
-		games = append(games, game)
+		*res = append(*res, game)
+
 	}
 
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	res = &games
 	return nil
 }
 
