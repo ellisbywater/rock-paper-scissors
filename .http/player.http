@@ -1,0 +1,20 @@
+@base=http://localhost:8080
+
+# Create New Player
+POST {{base}}/player/create
+Content-Type: application/json
+
+{
+    "username": "Adrian"
+}
+
+# Create A Second Player
+POST {{base}}/player/create
+Content-Type: application/json
+
+{
+    "username": "Maurice"
+}
+
+## Get Player Games
+GET {{base}}/player/1/games

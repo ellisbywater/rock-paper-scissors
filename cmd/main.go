@@ -32,30 +32,6 @@ func buildRoundHandlerDeps(db *sql.DB) handler.RoundHandlers {
 	return *handler.NewRoundHandlers(roundService)
 }
 
-func NewRouterWithDeps(db *sql.DB) *http.ServeMux {
-	r := http.NewServeMux()
-
-	gameHandler := buildGameHandlerDeps(db)
-	playerHandler := buildPlayerHandlerDeps(db)
-	roundHandler := buildRoundHandlerDeps(db)
-
-	r.HandleFunc("POST /player/create", playerHandler.Create)
-	r.HandleFunc("GET /player/{playerId}", playerHandler.Get)
-	r.HandleFunc("GET /player/{playerId}/games", playerHandler.GetGames)
-
-	r.HandleFunc("POST /game/create", gameHandler.Create)
-	r.HandleFunc("GET /game/{gameId}", gameHandler.GetGame)
-
-	r.HandleFunc("POST /round/create", roundHandler.Create)
-
-	return r
-}
-
-type App struct {
-	Port   string
-	Router *http.ServeMux
-}
-
 const port = ":8080"
 
 func main() {

@@ -1,0 +1,14 @@
+@base=http://localhost:8080
+
+# Create New Round (Requires Game ID)
+POST {{base}}/game/1/round/create
+Content-Type: application/json
+
+{
+    "current_player": 1,
+    "hand": "rock"
+}
+
+# Create New Play on Round
+POST {{base}}/game/1/round/1/playHand
+Content-Type: application/json

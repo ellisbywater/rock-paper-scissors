@@ -1,0 +1,13 @@
+@base=http://localhost:8080
+
+# Create New Game (Requires 2 players. Run first two requests in player.http first)
+POST {{base}}/games/create
+Content-Type: application/json
+
+{
+    "total_rounds": 2,
+    "player_one": 1,
+    "player_two": 2
+}
+
+GET {{base}}/games/1
